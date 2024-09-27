@@ -1,8 +1,10 @@
 import os
+from time import sleep
 os.environ['USING_ROBOT_TEST'] = 'True'
 
 from robot.denso_robot import DensoRobot
 from robot.denso_test import DensoTest
+from rria_api_denso import CAOVariableType
 DENSO_IP = "Server=192.168.160.228"
 CLICKS = 5
 
@@ -15,15 +17,21 @@ def main(denso_ip, robot_type='test'):
         robot = DensoRobot('test_pen_holder', 'test_pen_holder', denso_ip)
 
     robot.connect()
+    robot.set_arm_speed(50, 50, 50)
     robot.motor_on()
-    robot.move_preset_joints('home')
-    robot.move_preset_joints('pre_tap')
-    for i in range(CLICKS):
-        robot.move_preset_cartesian('tap')
-        robot.move_preset_cartesian('pre_tap')
-    robot.move_preset_joints('home')
+    robot.move_by_variable(CAOVariableType.J, 9)  # home
+    robot.move_by_variable(CAOVariableType.J, 15)
+    successful_feedback = 0
+    for _ in range(CLICKS):
+        robot.move_by_variable(CAOVariableType.J, 15)  # pre
+        robot.move_by_variable(CAOVariableType.J, 16)  # tap
+        feedback = robot.get_finger_feedback()
+        successful_feedback += feedback
+    robot.move_by_variable(CAOVariableType.J, 9)  # home
+    robot.motor_off()
     robot.disconnect()
+    print(f'EXPECTED = {CLICKS}: ACTUAL = {successful_feedback}')
 
 
 if __name__ == '__main__':
-    main(DENSO_IP, robot_type='test')
+    main(DENSO_IP, robot_type='real')

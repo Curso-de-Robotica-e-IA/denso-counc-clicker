@@ -1,9 +1,12 @@
 # Import control over the gripper
 from rria_api_denso import (DensoRobotAPI, RobotJointCommand,
                             RobotCartesianCommand)
+from rria_api_denso.denso_robot_api import CAOVariableType
 # Import abstract robot class
 from robot.denso_abstract import AbstractDenso
 from robot.bank_movements import get_pose
+
+IO_PORT = 48
 
 
 # Implement real Denso robot from abstract robot
@@ -17,7 +20,6 @@ class DensoRobot(AbstractDenso):
     def motor_enabled(self) -> bool:
         return self.__denso_api.motor_enabled()
 
-    # Setup CAO workspace and controller and connect the robot
     def connect(self) -> bool:
         try:
             return self.__denso_api.connect()
@@ -25,18 +27,13 @@ class DensoRobot(AbstractDenso):
             print(e)
             return False
 
-    # Delete CAO workspace and controller and disconnect the gripper and the robot
     def disconnect(self) -> bool:
         try:
-            if self.__gripper.is_connect():
-                self.__gripper.disconnect()
-
             return self.__denso_api.disconnect()
         except Exception as e:
             print(e)
             return False
 
-    # Take control of the robotic arm and turn on the motor
     def motor_on(self) -> bool:
         try:
             return self.__denso_api.motor_on()
@@ -44,7 +41,6 @@ class DensoRobot(AbstractDenso):
             print(e)
             return False
 
-    # Turn off the motor and give off control of the robotic arm
     def motor_off(self) -> bool:
         try:
             return self.__denso_api.motor_off()
@@ -52,7 +48,6 @@ class DensoRobot(AbstractDenso):
             print(e)
             return False
 
-    # Move robot joints according to command
     def move_joints(self, command: RobotJointCommand) -> bool:
         try:
             return self.__denso_api.move_joints(command)
@@ -60,7 +55,6 @@ class DensoRobot(AbstractDenso):
             print(e)
             return False
 
-    # Move robot in cartesian manner according to command
     def move_cartesian(self, command: RobotCartesianCommand) -> bool:
         try:
             return self.__denso_api.move_cartesian(command)
@@ -68,7 +62,6 @@ class DensoRobot(AbstractDenso):
             print(e)
             return False
 
-    # Move robot to a preset joints pose
     def move_preset_joints(self, pose: str) -> bool:
         if self.is_connected() and self.motor_enabled():
             joints, _ = get_pose(pose, 0)
@@ -83,7 +76,6 @@ class DensoRobot(AbstractDenso):
             print('\nRobot not connected')
             return False
 
-    # Move robot to a preset cartesian pose
     def move_preset_cartesian(self, pose: str) -> bool:
         if self.is_connected() and self.motor_enabled():
             coordinates, _ = get_pose(pose, 1)
@@ -98,7 +90,6 @@ class DensoRobot(AbstractDenso):
             print('\nRobot not connected')
             return False
 
-    # Move end effector forward or backward according to step size
     def move_tool_z(self, z_step: float) -> bool:
         try:
             return self.__denso_api.move_tool_z(z_step)
@@ -106,21 +97,18 @@ class DensoRobot(AbstractDenso):
             print(e)
             return False
 
-    # Return current joints configuration
     def get_joints_pose(self):
         try:
             return self.__denso_api.get_joints_pose()
         except Exception as e:
             print(e)
 
-    # Return current cartesian configuration
     def get_cartesian_pose(self):
         try:
             return self.__denso_api.get_cartesian_pose()
         except Exception as e:
             print(e)
 
-    # Setup speed, acceleration and deceleration for the robotic arm
     def set_arm_speed(self, speed, accel, decel) -> bool:
         try:
             return self.__denso_api.set_arm_speed(speed, accel, decel)
@@ -128,14 +116,12 @@ class DensoRobot(AbstractDenso):
             print(e)
             return False
 
-    # Return current speed, acceleration and deceleration of the robotic arm
     def get_current_arm_speed(self) -> tuple | None:
         try:
             return self.__denso_api.get_current_arm_speed()
         except Exception as e:
             print(e)
 
-    # Return current raised error
     def get_current_error(self):
         try:
             return self.__denso_api.get_current_error()
@@ -143,34 +129,53 @@ class DensoRobot(AbstractDenso):
             print(e)
             return False
 
-    # Return current cartesian figure
     def get_current_fig(self) -> int | None:
         try:
             return self.__denso_api.get_current_fig()
         except Exception as e:
             print(e)
 
-    # Check whether the arm is whithin workspace
     def is_out_of_range(self, robot_command) -> bool | None:
         try:
             return self.__denso_api.is_out_of_range(robot_command)
         except Exception as e:
             print(e)
 
-    # Convert joint to cartesian pose
     def joint_to_cartesian(self, command):
         try:
             return self.__denso_api.joint_to_cartesian(command)
         except Exception as e:
             print(e)
 
-    # Convert cartesian to joint pose
     def cartesian_to_joint(self, command):
         try:
             return self.__denso_api.cartesian_to_joint(command)
         except Exception as e:
             print(e)
 
-    # Return distance between current pose and target pose
     def calculate_dist_to(self, position):
         return self.__denso_api.dist_to(position)
+
+    def move_by_variable(self, type_var, number):
+        try:
+            pos = self.__denso_api.get_variable_content(type_var, number)
+
+            robot_pos = RobotJointCommand(pos[0], pos[1], pos[2], pos[3], pos[4], pos[5])
+
+            return self.__denso_api.move_joints(robot_pos)
+        except Exception as e:
+            print(e)
+
+    def get_finger_feedback(self) -> int:
+        """Acquires the value from the Denso I/O port
+        which teh finger is connected to.
+
+        Returns:
+            int: 0 or 1, where 0 is a negative feedback.
+        """
+        caotype = CAOVariableType.IO
+        feedback = self.__denso_api.get_variable_content(
+            cao_type=caotype,
+            number=IO_PORT,
+        )
+        return feedback
